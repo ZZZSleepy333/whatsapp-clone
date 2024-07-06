@@ -129,17 +129,6 @@ const Sidebar = () => {
   const createConversation = async () => {
     if (!recipientEmail) return;
 
-    // if (
-    //   EmailValidator.validate(recipientEmail) &&
-    //   !isInvitingSelf &&
-    //   !isConversationAlreadyExists(recipientEmail) &&
-    //   isUsersExists(recipientEmail)
-    // ) {
-    //   await addDoc(collection(db, "conversations"), {
-    //     users: [loggedInUser?.email, recipientEmail],
-    //   });
-    // } else {
-    // }
     if (EmailValidator.validate(recipientEmail) && isInvitingSelf) {
       showSnackbar("You cannot invite yourself");
     } else if (isConversationAlreadyExists(recipientEmail)) {
@@ -150,8 +139,8 @@ const Sidebar = () => {
       await addDoc(collection(db, "conversations"), {
         users: [loggedInUser?.email, recipientEmail],
       });
+      closeNewConversationDialog();
     }
-    closeNewConversationDialog();
   };
 
   const logout = async () => {

@@ -3,12 +3,13 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_APIKEY,
-  authDomain: process.env.NEXT_PUBLIC_AUTHDOMAIN,
-  projectId: process.env.NEXT_PUBLIC_PROJECTID,
-  storageBucket: process.env.NEXT_PUBLIC_STORAGEBUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_MESSAGINGSENDERID,
-  appId: process.env.NEXT_PUBLIC_APPID,
+  apiKey: "AIzaSyDBHqpaCKMn5hy6uuJqEhyGKakpWdWpUfc",
+  authDomain: "whatappsclone-635ca.firebaseapp.com",
+  projectId: "whatappsclone-635ca",
+  storageBucket: "whatappsclone-635ca.appspot.com",
+  messagingSenderId: "578676297810",
+  appId: "1:578676297810:web:1bc4d477b1c16423390f8b",
+  measurementId: "G-EHM16SHS0D",
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
