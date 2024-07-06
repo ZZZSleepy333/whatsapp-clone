@@ -92,6 +92,8 @@ const Sidebar = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
+  const [search, setSearcch] = useState("");
+
   const showSnackbar = (message: SetStateAction<string>) => {
     setSnackbarMessage(message);
     setSnackbarOpen(true);
@@ -151,6 +153,15 @@ const Sidebar = () => {
     }
   };
 
+  const filteredConversations = conversationsSnapshot?.docs.filter(
+    (conversation) => {
+      const conversationUsers = conversation.data().users || [];
+      return conversationUsers.some((user: string) =>
+        user.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+  );
+
   return (
     <StyledContainer>
       <StyledHeader>
@@ -169,12 +180,13 @@ const Sidebar = () => {
           </IconButton>
         </div>
       </StyledHeader>
-
       <StyledSearch>
         <SearchIcon />
-        <StyledSearchInput placeholder="Search in conversations" />
+        <StyledSearchInput
+          placeholder="Search in conversations"
+          onChange={(e) => setSearcch(e.target.value)}
+        />
       </StyledSearch>
-
       <StyledSidebarButton
         onClick={() => {
           toggleNewConversationDialog(true);
@@ -182,8 +194,7 @@ const Sidebar = () => {
       >
         Start a new conversation
       </StyledSidebarButton>
-
-      {conversationsSnapshot?.docs.map((conversation) => (
+      {filteredConversations?.map((conversation) => (
         <ConversationSelect
           key={conversation.id}
           id={conversation.id}
