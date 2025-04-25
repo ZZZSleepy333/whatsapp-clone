@@ -1,3 +1,5 @@
+"use client";
+
 import IconButton from "@mui/material/IconButton";
 import styled from "styled-components";
 import { useRecipient } from "../hooks/useRecipient";
@@ -18,6 +20,8 @@ import Message from "./Message";
 import InsertEmoticonIcon from "@mui/icons-material/InsertEmoticon";
 import SendIcon from "@mui/icons-material/Send";
 import MicIcon from "@mui/icons-material/Mic";
+import CloseIcon from "@mui/icons-material/Close";
+import CircularProgress from "@mui/material/CircularProgress";
 import {
   KeyboardEventHandler,
   MouseEventHandler,
@@ -31,7 +35,20 @@ import {
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
+import Image from "next/image";
+// import {
+//   getStorage,
+//   ref,
+//   uploadBytes,
+//   getDownloadURL,
+//   uploadBytesResumable,
+// } from "firebase/storage";
 import { getRecipientName } from "../utils/getRecipientName";
+import EmojiPicker from "emoji-picker-react";
+import EmojiPickerComponent from "./EmojiPickerButton";
+import ImageSidebar from "./ImageSidebar";
+import cloudinary from "../config/cloudinary";
+import FileReviewComponent from "./FileReviewComponent";
 
 const StyledRecipientHeader = styled.div`
   position: sticky;
@@ -42,7 +59,7 @@ const StyledRecipientHeader = styled.div`
   align-items: center;
   padding: 11px;
   height: 80px;
-  border-bottom: 1px solid whitesmoke;
+  border-bottom: 1px solid ${({ theme }) => theme.border};
 `;
 
 const StyledHeaderInfo = styled.div`
@@ -55,7 +72,8 @@ const StyledHeaderInfo = styled.div`
 
   > span {
     font-size: 14px;
-    color: gray;
+    color: var(--text-color);
+    opacity: 0.7;
   }
 `;
 
@@ -79,7 +97,7 @@ const StyledInputContainer = styled.form`
   padding: 10px;
   position: sticky;
   bottom: 0;
-  background-color: white;
+  background-color: ${({ theme }) => theme.headerBg};
   z-index: 100;
 `;
 
@@ -98,6 +116,15 @@ const EndOfMessagesForAutoScroll = styled.div`
   margin-bottom: 30px;
 `;
 
+const InputAndPreviewContainer = styled.div`
+  position: relative;
+  width: 100%;
+`;
+
+// Xóa các styled components sau vì đã chuyển sang FileReviewComponent:
+// StyledFilePreviewContainer, StyledMultiFileContainer, StyledFilePreview,
+// StyledFileInfo, StyledCloseButton, StyledProgressContainer, StyledProgressBar
+
 const ConversationScreen = ({
   conversation,
   messages,
@@ -107,7 +134,16 @@ const ConversationScreen = ({
 }) => {
   const [newMessage, setNewMessage] = useState("");
   const [loggedInUser, _loading, _error] = useAuthState(auth);
-
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<
+    { file: File; preview: string }[]
+  >([]);
+  const [uploadProgress, setUploadProgress] = useState<{
+    [key: string]: number;
+  }>({});
+  const [isUploading, setIsUploading] = useState(false);
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_FILES = 5;
   const conversationUsers = conversation.users;
 
   const { recipientEmail, recipient, recipientName } =
@@ -121,6 +157,94 @@ const ConversationScreen = ({
   const [messagesSnapshot, messagesLoading, __error] =
     useCollection(queryGetMessages);
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("File input changed", event.target.files);
+    if (event.target.files) {
+      const newFiles = Array.from(event.target.files);
+
+      // Kiểm tra tổng số lượng tệp (hiện tại + mới)
+      if (selectedFiles.length + newFiles.length > MAX_FILES) {
+        alert(
+          `Bạn chỉ có thể tải lên tối đa ${MAX_FILES} tệp cùng lúc. Hiện tại bạn đã chọn ${selectedFiles.length} tệp.`
+        );
+        return;
+      }
+
+      // Kiểm tra kích thước tệp
+      const oversizedFiles = newFiles.filter(
+        (file) => file.size > MAX_FILE_SIZE
+      );
+      if (oversizedFiles.length > 0) {
+        alert(
+          `Các tệp sau vượt quá giới hạn 10MB: ${oversizedFiles
+            .map((f) => `${f.name} (${(f.size / (1024 * 1024)).toFixed(2)}MB)`)
+            .join(", ")}`
+        );
+        return;
+      }
+
+      // Thêm các file mới vào mảng hiện có
+      const updatedFiles = [...selectedFiles, ...newFiles];
+      setSelectedFiles(updatedFiles);
+
+      // Tạo xem trước cho các tệp mới
+      const newPreviews: { file: File; preview: string }[] = [];
+
+      newFiles.forEach((file) => {
+        if (file.type.startsWith("image/")) {
+          try {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              if (e.target && e.target.result) {
+                newPreviews.push({
+                  file,
+                  preview: e.target.result as string,
+                });
+
+                if (newPreviews.length === newFiles.length) {
+                  // Cập nhật filePreviews bằng cách thêm vào mảng hiện có
+                  setFilePreviews((prev) => [...prev, ...newPreviews]);
+                }
+              }
+            };
+            reader.readAsDataURL(file);
+          } catch (error) {
+            console.error("Error reading file:", error);
+            newPreviews.push({
+              file,
+              preview: "non-image",
+            });
+          }
+        } else {
+          newPreviews.push({
+            file,
+            preview: "non-image",
+          });
+        }
+      });
+
+      // Nếu không có tệp hình ảnh, cập nhật state ngay lập tức
+      if (newPreviews.length === newFiles.length) {
+        setFilePreviews((prev) => [...prev, ...newPreviews]);
+      }
+    } else {
+      console.log("No files selected");
+    }
+  };
+
+  const clearSelectedFiles = () => {
+    setSelectedFiles([]);
+    setFilePreviews([]);
+    // Reset the file input
+    const fileInput = document.getElementById("fileInput") as HTMLInputElement;
+    if (fileInput) fileInput.value = "";
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setFilePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const showMessages = () => {
     if (messagesLoading) {
       return messages.map((message) => (
@@ -129,33 +253,135 @@ const ConversationScreen = ({
     }
 
     if (messagesSnapshot) {
-      return messagesSnapshot.docs.map((message) => (
-        <Message key={message.id} message={transformMessage(message)} />
-      ));
+      return messagesSnapshot.docs.map((message) => {
+        const msgData = transformMessage(message);
+        return (
+          <div key={message.id}>
+            <Message message={msgData} />
+
+            {/* Hiển thị hình ảnh nếu có và là file hình ảnh */}
+            {/* {msgData.fileUrl && msgData.fileUrl.includes("image") && (
+              <Image
+                src={msgData.fileUrl}
+                alt="uploaded"
+                width={200}
+                height={200}
+                style={{ objectFit: "contain", maxHeight: "300px" }}
+                onError={(e) => console.error("Image load error:", e)}
+              />
+            )} */}
+
+            {/* Hiển thị link tải file nếu không phải ảnh */}
+            {msgData.fileUrl && !msgData.fileUrl.includes("image") && (
+              <a
+                href={msgData.fileUrl}
+                download
+                target="_blank"
+                rel="noreferrer"
+              >
+                📎 {msgData.fileUrl.split("/").pop()}
+              </a>
+            )}
+          </div>
+        );
+      });
     }
 
     return null;
   };
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/upload", true);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          setUploadProgress((prev) => ({
+            ...prev,
+            [file.name]: progress,
+          }));
+        }
+      };
+
+      xhr.onload = function () {
+        if (this.status >= 200 && this.status < 300) {
+          const response = JSON.parse(this.responseText);
+          resolve(response.url);
+        } else {
+          reject(new Error(`Upload failed: ${this.statusText}`));
+        }
+      };
+
+      xhr.onerror = function () {
+        reject(new Error("XHR request failed"));
+      };
+
+      xhr.send(formData);
+    });
+  };
 
   const addMessageToDbAndUpdateLastSeen = async () => {
-    await setDoc(
-      doc(db, "users", loggedInUser?.email as string),
-      {
-        lastSeen: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    const fileUrls: string[] = [];
+    setIsUploading(true);
 
-    await addDoc(collection(db, "messages"), {
-      conversation_id: conversationId,
-      sent_at: serverTimestamp(),
-      text: newMessage,
-      user: loggedInUser?.email,
-    });
+    try {
+      // Nếu có file, tải lên Cloudinary trước
+      if (selectedFiles.length > 0) {
+        // Tạo một bản sao của uploadProgress để cập nhật
+        const progressCopy = { ...uploadProgress };
 
-    setNewMessage("");
+        // Tải lên từng tệp một
+        for (const file of selectedFiles) {
+          try {
+            const fileUrl = await uploadToCloudinary(file);
+            fileUrls.push(fileUrl);
+          } catch (error) {
+            console.error(`Upload failed for ${file.name}:`, error);
+          }
+        }
+      }
 
-    scrollToBottom();
+      // Cập nhật trạng thái lastSeen
+      await setDoc(
+        doc(db, "users", loggedInUser?.email as string),
+        { lastSeen: serverTimestamp() },
+        { merge: true }
+      );
+
+      // Nếu có nhiều tệp, tạo nhiều tin nhắn
+      if (fileUrls.length > 0) {
+        for (const fileUrl of fileUrls) {
+          await addDoc(collection(db, "messages"), {
+            conversation_id: conversationId,
+            sent_at: serverTimestamp(),
+            text: newMessage || "", // Nếu chỉ gửi file thì text có thể trống
+            fileUrl,
+            user: loggedInUser?.email,
+          });
+        }
+      } else {
+        // Nếu chỉ có tin nhắn văn bản
+        await addDoc(collection(db, "messages"), {
+          conversation_id: conversationId,
+          sent_at: serverTimestamp(),
+          text: newMessage,
+          user: loggedInUser?.email,
+        });
+      }
+
+      setNewMessage("");
+      clearSelectedFiles();
+      setUploadProgress({});
+      setIsUploading(false);
+      scrollToBottom();
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setIsUploading(false);
+    }
   };
 
   const sendMessageOnEnter: KeyboardEventHandler<HTMLInputElement> = (
@@ -163,14 +389,16 @@ const ConversationScreen = ({
   ) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      if (!newMessage) return;
+      console.log("Enter pressed", { newMessage, selectedFiles });
+      if (!newMessage && selectedFiles.length === 0) return;
       addMessageToDbAndUpdateLastSeen();
     }
   };
 
   const sendMessageOnClick: MouseEventHandler<HTMLButtonElement> = (event) => {
     event.preventDefault();
-    if (!newMessage) return;
+    console.log("Send button clicked", { newMessage, selectedFiles });
+    if (!newMessage && selectedFiles.length === 0) return;
     addMessageToDbAndUpdateLastSeen();
   };
 
@@ -178,6 +406,10 @@ const ConversationScreen = ({
 
   const scrollToBottom = () => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setNewMessage((prev) => prev + emoji);
   };
 
   return (
@@ -215,19 +447,46 @@ const ConversationScreen = ({
         <EndOfMessagesForAutoScroll ref={endOfMessagesRef} />
       </StyledMessageContainer>
 
+      <FileReviewComponent
+        selectedFiles={selectedFiles}
+        filePreviews={filePreviews}
+        uploadProgress={uploadProgress}
+        isUploading={isUploading}
+        clearSelectedFiles={clearSelectedFiles}
+        removeFile={removeFile}
+      />
+
       <StyledInputContainer>
-        <InsertEmoticonIcon />
+        <EmojiPickerComponent onSelect={handleEmojiSelect} />
         <StyledInput
           value={newMessage}
           onChange={(event) => setNewMessage(event.target.value)}
           onKeyDown={sendMessageOnEnter}
         />
-        <IconButton onClick={sendMessageOnClick} disabled={!newMessage}>
+        <IconButton
+          onClick={sendMessageOnClick}
+          disabled={(!newMessage && selectedFiles.length === 0) || isUploading}
+        >
           <SendIcon />
         </IconButton>
-        <IconButton>
-          <MicIcon />
+        <IconButton
+          onClick={() => {
+            console.log("Attach file button clicked");
+            const fileInput = document.getElementById(
+              "fileInput"
+            ) as HTMLInputElement;
+            fileInput?.click();
+          }}
+          disabled={isUploading}
+        >
+          <AttachFileIcon />
         </IconButton>
+        <input
+          type="file"
+          id="fileInput"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
       </StyledInputContainer>
     </>
   );

@@ -9,6 +9,7 @@ const StyledContainer = styled.div`
 	justify-content: center;
 	align-items: center;
 	height: 100vh;
+	background-color: var(--background-color);
 `
 
 const StyledImageWrapper = styled.div`

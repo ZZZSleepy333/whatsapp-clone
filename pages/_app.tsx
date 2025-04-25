@@ -1,9 +1,9 @@
-import "../styles/globals.css";
 import type { AppProps } from "next/app";
-import Login from "./login";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "../config/firebase";
+import Login from "./login";
 import Loading from "../components/Loading";
+import "../styles/globals.css";
 import { useEffect } from "react";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 

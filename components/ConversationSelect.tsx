@@ -1,3 +1,5 @@
+"use client";
+
 import { useRouter } from "next/router";
 import styled from "styled-components";
 import { useRecipient } from "../hooks/useRecipient";

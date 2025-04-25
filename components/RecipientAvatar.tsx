@@ -1,3 +1,5 @@
+"use client";
+
 import Avatar from "@mui/material/Avatar";
 import styled from "styled-components";
 import { useRecipient } from "../hooks/useRecipient";

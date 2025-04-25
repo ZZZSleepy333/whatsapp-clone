@@ -17,4 +17,5 @@ export interface IMessage {
   text: string;
   sent_at: string;
   user: string;
+  fileUrl?: string;
 }

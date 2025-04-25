@@ -1,3 +1,163 @@
+:root {
+  --background-color: #ffffff;
+  --text-color: #000000;
+  --conversation-bg: #ffffff;
+  --message-bg: #e5ded8;
+  --sender-message: #dcf8c6;
+  --receiver-message: #e1f5fe; /* Màu xanh nhạt cho tin nhắn người nhận */
+  --input-bg: whitesmoke;
+  --border-color: whitesmoke;
+  --shadow-color: rgba(0, 0, 0, 0.2);
+  --header-bg: #ffffff;
+  --icon-color: #555;
+  --filePreviewBg: #f5f5f5;
+  --filePreviewBorder: #e0e0e0;
+  --filePreviewText: #333333;
+  --filePreviewSubtext: #757575;
+}
+
+body.dark-mode {
+  --background-color: #121212 !important;
+  --text-color: #ffffff !important;
+  --conversation-bg: #1f1f1f !important;
+  --message-bg: #262d31 !important;
+  --sender-message: #056162 !important;
+  --receiver-message: #262d31 !important;
+  --input-bg: #323739 !important;
+  --border-color: #323739 !important;
+  --shadow-color: rgba(0, 0, 0, 0.4) !important;
+  --header-bg: #1f1f1f !important;
+  --icon-color: #aaaaaa !important;
+  --receiver-message: #4891c9 !important; /* Màu xanh đậm cho tin nhắn người nhận trong dark mode */
+  --filePreviewBg: #2c2c2c !important;
+  --filePreviewBorder: #444444 !important;
+  --filePreviewText: #ffffff !important;
+  --filePreviewSubtext: #aaaaaa !important;
+}
+
+body {
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
+  transition: all 0.3s ease;
+}
+
+/* Đảm bảo các component chính sử dụng CSS variables */
+.styled-container,
+[class*="StyledContainer"] {
+  background-color: var(--conversation-bg) !important;
+  border-right: 1px solid var(--border-color) !important;
+}
+
+.styled-header,
+[class*="StyledHeader"] {
+  background-color: var(--header-bg) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.styled-search,
+.styled-search-input,
+[class*="StyledSearch"],
+[class*="StyledSearchInput"] {
+  background-color: var(--input-bg) !important;
+  color: var(--text-color) !important;
+}
+
+/* Thêm !important để ghi đè các style inline */
+.message-container {
+  background-color: var(--message-bg);
+}
+
+.sender-message {
+  background-color: var(--sender-message);
+  color: var(--text-color);
+}
+
+.receiver-message {
+  background-color: var(--receiver-message);
+  color: var(--text-color);
+}
+
+.input-container {
+  background-color: var(--header-bg);
+}
+
+.input {
+  background-color: var(--input-bg);
+  color: var(--text-color);
+}
+/* Thêm các selector cho các component khác */
+[class*="StyledMessageContainer"] {
+  background-color: var(--message-bg) !important;
+}
+
+[class*="StyledInputContainer"] {
+  background-color: var(--header-bg) !important;
+  border-top: 1px solid var(--border-color) !important;
+}
+
+[class*="StyledInput"] {
+  background-color: var(--input-bg) !important;
+  color: var(--text-color) !important;
+}
+
+[class*="StyledRecipientHeader"] {
+  background-color: var(--header-bg) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+[class*="StyledMessage"] {
+  color: var(--text-color) !important;
+}
+
+[class*="StyledSenderMessage"] {
+  background-color: var(--sender-message) !important;
+}
+
+[class*="StyledReceiverMessage"] {
+  background-color: var(--receiver-message) !important;
+}
+
+/* Thêm style cho các component MUI */
+.MuiPaper-root {
+  background-color: var(--conversation-bg) !important;
+  color: var(--text-color) !important;
+}
+
+.MuiDialog-paper {
+  background-color: var(--conversation-bg) !important;
+  color: var(--text-color) !important;
+}
+
+.MuiInputBase-input {
+  color: var(--text-color) !important;
+}
+
+.MuiInputLabel-root {
+  color: var(--text-color) !important;
+  opacity: 0.7;
+}
+
+.MuiIconButton-root {
+  color: var(--icon-color) !important;
+}
+
+.MuiButton-root {
+  color: var(--text-color) !important;
+}
+
+/* Thêm style cho scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 6px;
+}
 html,
 body {
   padding: 0;
@@ -13,4 +173,6 @@ a {
 
 * {
   box-sizing: border-box;
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease, box-shadow 0.3s ease;
 }
