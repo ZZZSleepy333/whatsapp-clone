@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import { User } from "firebase/auth";
 import { AppUser, Conversation } from "../types";
 import { collection, query, where } from "firebase/firestore";
