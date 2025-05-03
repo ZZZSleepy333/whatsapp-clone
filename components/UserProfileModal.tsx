@@ -23,7 +23,14 @@ import ReactCrop, {
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { auth } from "../config/firebase";
-import { updateProfile } from "firebase/auth";
+import {
+  updateProfile,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { db } from "../config/firebase";
 
 // Styled components
 const StyledUserModal = styled(Paper)`
@@ -189,6 +196,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile"); // "profile" hoặc "password"
 
   const handleAvatarClick = () => {
     if (fileInputRef.current) {
@@ -196,26 +207,21 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-
-      // Tạo URL cho ảnh đã chọn
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target && e.target.result) {
-          setImageSrc(e.target.result as string);
-          setIsCropDialogOpen(true);
-        }
-      };
-      reader.readAsDataURL(file);
+      reader.addEventListener("load", () => {
+        setImageSrc(reader.result?.toString() || null);
+        setIsCropDialogOpen(true);
+      });
+      reader.readAsDataURL(e.target.files[0]);
     }
   };
 
   const onImageLoad = useCallback(
     (e: React.SyntheticEvent<HTMLImageElement>) => {
       const { width, height } = e.currentTarget;
-      setCrop(centerAspectCrop(width, height, 1)); // Tỷ lệ 1:1 cho avatar hình tròn
+      setCrop(centerAspectCrop(width, height, 1));
     },
     []
   );
@@ -227,150 +233,228 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const handleCropCancel = () => {
     setIsCropDialogOpen(false);
     setImageSrc(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const handleCropConfirm = async () => {
     if (imgRef.current && completedCrop) {
       try {
-        const croppedImageBlob = await getCroppedImg(
-          imgRef.current,
-          completedCrop
-        );
-        const croppedImageUrl = URL.createObjectURL(croppedImageBlob);
-        setNewAvatarPreview(croppedImageUrl);
-        setNewAvatar(croppedImageBlob);
+        const croppedImg = await getCroppedImg(imgRef.current, completedCrop);
+        const previewUrl = URL.createObjectURL(croppedImg);
+        setNewAvatar(croppedImg);
+        setNewAvatarPreview(previewUrl);
         setIsCropDialogOpen(false);
-
-        showSnackbar("Đã cắt ảnh thành công");
       } catch (error) {
         console.error("Lỗi khi cắt ảnh:", error);
-        showSnackbar("Có lỗi xảy ra khi cắt ảnh");
+        showSnackbar("Có lỗi xảy ra khi xử lý ảnh");
       }
     }
   };
 
-  const uploadToCloudinary = async (blob: Blob): Promise<string> => {
-    const formData = new FormData();
-    formData.append("file", blob);
-    formData.append("upload_preset", "whatsapp_clone"); // Thay thế bằng upload preset của bạn
+  // Hàm cập nhật avatar
+  const handleUpdateAvatar = async () => {
+    if (!newAvatar || !user) return;
 
+    setIsUploading(true);
     try {
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+      // Tạo FormData để gửi file lên server
+      const formData = new FormData();
+      formData.append("file", newAvatar);
+      
+      // Gọi API upload đã có sẵn
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error("Lỗi khi tải ảnh lên Cloudinary");
+      }
+      
+      const data = await response.json();
+      const cloudinaryUrl = data.url;
+      
+      // Cập nhật profile trong Firebase Auth
+      await updateProfile(user, {
+        photoURL: cloudinaryUrl,
+      });
+
+      // Cập nhật thông tin trong Firestore
+      await setDoc(
+        doc(db, "users", user.email as string),
         {
-          method: "POST",
-          body: formData,
-        }
+          photoURL: cloudinaryUrl,
+          lastSeen: serverTimestamp(),
+        },
+        { merge: true }
       );
 
-      if (!response.ok) {
-        throw new Error("Lỗi khi upload lên Cloudinary");
-      }
-
-      const data = await response.json();
-      return data.secure_url;
+      showSnackbar("Cập nhật avatar thành công");
+      setNewAvatar(null);
+      setNewAvatarPreview(null);
+      onClose();
     } catch (error) {
-      console.error("Lỗi upload:", error);
-      throw error;
+      console.error("Lỗi cập nhật avatar:", error);
+      showSnackbar("Có lỗi xảy ra khi cập nhật avatar");
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleUpdateProfile = async () => {
-    if (newAvatar) {
-      setIsUploading(true);
-      try {
-        // Upload ảnh lên Cloudinary
-        const imageUrl = await uploadToCloudinary(newAvatar);
+  // Hàm cập nhật mật khẩu
+  const handleUpdatePassword = async () => {
+    if (!user) return;
 
-        // Cập nhật photoURL trong Firebase Authentication
-        if (auth.currentUser) {
-          await updateProfile(auth.currentUser, {
-            photoURL: imageUrl,
-          });
+    setError("");
 
-          showSnackbar("Cập nhật avatar thành công");
-        }
-      } catch (error) {
-        console.error("Lỗi khi cập nhật avatar:", error);
-        showSnackbar("Có lỗi xảy ra khi cập nhật avatar");
-      } finally {
-        setIsUploading(false);
-        onClose();
+    // Kiểm tra mật khẩu
+    if (password !== confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự");
+      return;
+    }
+
+    if (!currentPassword) {
+      setError("Vui lòng nhập mật khẩu hiện tại");
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      // Xác thực lại người dùng trước khi đổi mật khẩu
+      const credential = EmailAuthProvider.credential(
+        user.email as string,
+        currentPassword
+      );
+
+      await reauthenticateWithCredential(user, credential);
+
+      // Cập nhật mật khẩu mới
+      await updatePassword(user, password);
+
+      showSnackbar("Cập nhật mật khẩu thành công");
+      setPassword("");
+      setConfirmPassword("");
+      setCurrentPassword("");
+      setActiveTab("profile");
+    } catch (error: any) {
+      console.error("Lỗi cập nhật mật khẩu:", error);
+      if (error.code === "auth/wrong-password") {
+        setError("Mật khẩu hiện tại không chính xác");
+      } else {
+        setError("Có lỗi xảy ra khi cập nhật mật khẩu");
       }
-    } else if (password && confirmPassword) {
-      showSnackbar("Chức năng đổi mật khẩu đang được phát triển");
-      onClose();
-    } else {
-      onClose();
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
   return (
-    <>
-      <Modal
-        open={open}
-        onClose={onClose}
-        aria-labelledby="user-profile-modal"
-        aria-describedby="user-profile-information"
-      >
-        <StyledUserModal>
-          {isUploading && (
-            <LoadingOverlay>
-              <CircularProgress color="inherit" />
-            </LoadingOverlay>
-          )}
+    <Modal open={open} onClose={onClose}>
+      <StyledUserModal>
+        {isUploading && (
+          <LoadingOverlay>
+            <CircularProgress color="inherit" />
+          </LoadingOverlay>
+        )}
 
-          <Typography variant="h5" component="h2" gutterBottom>
-            Thông tin người dùng
-          </Typography>
-
-          <HiddenFileInput
-            type="file"
-            accept="image/*"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-          />
-
-          <UserAvatarLarge
-            src={newAvatarPreview || user?.photoURL || ""}
-            onClick={handleAvatarClick}
-          />
-          <Typography
-            variant="caption"
-            style={{ marginTop: -15, marginBottom: 15 }}
+        <div style={{ width: "100%", marginBottom: "20px" }}>
+          <Button
+            variant={activeTab === "profile" ? "contained" : "outlined"}
+            onClick={() => setActiveTab("profile")}
+            style={{ marginRight: "10px" }}
           >
-            Nhấp vào ảnh để thay đổi
-          </Typography>
+            Thông tin cá nhân
+          </Button>
+          <Button
+            variant={activeTab === "password" ? "contained" : "outlined"}
+            onClick={() => setActiveTab("password")}
+          >
+            Đổi mật khẩu
+          </Button>
+        </div>
 
-          <UserInfoSection>
-            <Typography variant="h6">{user?.displayName}</Typography>
-            <Typography variant="body2" color="textSecondary">
-              {user?.email}
+        {activeTab === "profile" && (
+          <>
+            <UserAvatarLarge
+              src={newAvatarPreview || user?.photoURL || ""}
+              onClick={handleAvatarClick}
+            />
+            <Typography
+              variant="caption"
+              style={{ marginTop: -15, marginBottom: 15 }}
+            >
+              Nhấp vào ảnh để thay đổi
             </Typography>
-          </UserInfoSection>
+            <HiddenFileInput
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
 
+            <UserInfoSection>
+              <Typography variant="h5" gutterBottom>
+                {user?.displayName}
+              </Typography>
+              <Typography variant="body1" color="textSecondary">
+                {user?.email}
+              </Typography>
+            </UserInfoSection>
+
+            <UserActionSection>
+              {newAvatar && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  onClick={handleUpdateAvatar}
+                  disabled={isUploading}
+                >
+                  {isUploading ? "Đang cập nhật..." : "Cập nhật avatar"}
+                </Button>
+              )}
+              <Button
+                variant="outlined"
+                color="primary"
+                fullWidth
+                onClick={onClose}
+              >
+                Đóng
+              </Button>
+            </UserActionSection>
+          </>
+        )}
+
+        {activeTab === "password" && (
           <UserActionSection>
+            <TextField
+              label="Mật khẩu hiện tại"
+              type="password"
+              fullWidth
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              margin="normal"
+            />
             <TextField
               label="Mật khẩu mới"
               type="password"
-              variant="outlined"
               fullWidth
-              size="small"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              margin="normal"
             />
-
             <TextField
-              label="Xác nhận mật khẩu"
+              label="Xác nhận mật khẩu mới"
               type="password"
-              variant="outlined"
               fullWidth
-              size="small"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              margin="normal"
               error={password !== confirmPassword && confirmPassword !== ""}
               helperText={
                 password !== confirmPassword && confirmPassword !== ""
@@ -378,74 +462,63 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   : ""
               }
             />
-
+            {error && (
+              <Typography color="error" variant="body2">
+                {error}
+              </Typography>
+            )}
             <Button
               variant="contained"
               color="primary"
               fullWidth
-              onClick={handleUpdateProfile}
-              style={{ marginTop: 10 }}
-              disabled={
-                isUploading || (password !== "" && password !== confirmPassword)
-              }
+              onClick={handleUpdatePassword}
+              disabled={isChangingPassword}
             >
-              {isUploading ? "Đang cập nhật..." : "Cập nhật thông tin"}
+              {isChangingPassword ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
+            </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              fullWidth
+              onClick={() => setActiveTab("profile")}
+            >
+              Quay lại
             </Button>
           </UserActionSection>
-        </StyledUserModal>
-      </Modal>
+        )}
 
-      {/* Dialog để cắt ảnh */}
-      <Dialog
-        open={isCropDialogOpen}
-        onClose={handleCropCancel}
-        maxWidth="md"
-        PaperProps={{
-          style: {
-            backgroundColor: "var(--conversation-bg)",
-            color: "var(--text-color)",
-          },
-        }}
-      >
-        <DialogTitle>Cắt ảnh đại diện</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" gutterBottom>
-            Di chuyển và điều chỉnh khung để chọn phần ảnh làm avatar
-          </Typography>
-          <CropContainer>
-            {imageSrc && (
-              <ReactCrop
-                crop={crop}
-                onChange={(c) => setCrop(c)}
-                onComplete={handleCropComplete}
-                aspect={1}
-                circularCrop
-              >
-                <img
-                  ref={imgRef}
-                  src={imageSrc}
-                  alt="Ảnh để cắt"
-                  style={{ maxWidth: "100%", maxHeight: "400px" }}
-                  onLoad={onImageLoad}
-                />
-              </ReactCrop>
-            )}
-          </CropContainer>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCropCancel} color="error">
-            Hủy
-          </Button>
-          <Button
-            onClick={handleCropConfirm}
-            color="primary"
-            disabled={!completedCrop}
-          >
-            Xác nhận
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+        <Dialog open={isCropDialogOpen} onClose={handleCropCancel}>
+          <DialogTitle>Cắt ảnh đại diện</DialogTitle>
+          <DialogContent>
+            <CropContainer>
+              {imageSrc && (
+                <ReactCrop
+                  crop={crop}
+                  onChange={(_, percentCrop) => setCrop(percentCrop)}
+                  onComplete={handleCropComplete}
+                  aspect={1}
+                  circularCrop
+                >
+                  <img
+                    ref={imgRef}
+                    alt="Crop me"
+                    src={imageSrc}
+                    style={{ maxWidth: "100%" }}
+                    onLoad={onImageLoad}
+                  />
+                </ReactCrop>
+              )}
+            </CropContainer>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCropCancel}>Hủy</Button>
+            <Button onClick={handleCropConfirm} color="primary">
+              Xác nhận
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </StyledUserModal>
+    </Modal>
   );
 };
 

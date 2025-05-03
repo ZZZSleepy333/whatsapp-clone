@@ -26,7 +26,7 @@ import {
 import { useAuthState } from "react-firebase-hooks/auth";
 import { SetStateAction, useState, useEffect } from "react";
 import * as EmailValidator from "email-validator";
-import { addDoc, collection, query, where } from "firebase/firestore";
+import { addDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { useCollection } from "react-firebase-hooks/firestore";
 import { Conversation } from "../types";
 import ConversationSelect from "./ConversationSelect";
@@ -224,8 +224,16 @@ const Sidebar = () => {
     collection(db, "conversations"),
     where("users", "array-contains", loggedInUser?.email)
   );
-  const queryUserList = (recipientEmail: string) =>
-    query(collection(db, "users"), where("email", "==", recipientEmail));
+  const queryUserList = (recipientEmail: string) => {
+    // Tạo query
+    const userQuery = query(
+      collection(db, "users"),
+      where("email", "==", recipientEmail)
+    );
+
+    // Thực thi query và trả về kết quả
+    return userQuery;
+  };
   const [conversationsSnapshot, __loading, __error] = useCollection(
     queryGetConversationsForCurrentUser
   );
@@ -240,26 +248,41 @@ const Sidebar = () => {
   const isUsersExists = (recipientEmail: string) =>
     queryUserList(recipientEmail) == null ? true : false;
 
+  // Trong hàm createConversation
   const createConversation = async () => {
+    console.log(recipientEmail);
     if (!recipientEmail) return;
 
     if (EmailValidator.validate(recipientEmail) && isInvitingSelf) {
       showSnackbar("You cannot invite yourself");
     } else if (isConversationAlreadyExists(recipientEmail)) {
       showSnackbar("Conversation already exists");
-    } else if (!isUsersExists(recipientEmail)) {
-      showSnackbar("User does not exist");
     } else {
-      await addDoc(collection(db, "conversations"), {
-        users: [loggedInUser?.email, recipientEmail],
-      });
-      closeNewConversationDialog();
+      // Kiểm tra xem người dùng có tồn tại không
+      const userQuery = queryUserList(recipientEmail);
+      const userSnapshot = await getDocs(userQuery);
+
+      console.log(
+        "Kết quả query:",
+        userSnapshot.docs.map((doc) => doc.data())
+      );
+
+      if (userSnapshot.empty) {
+        showSnackbar("User does not exist");
+      } else {
+        await addDoc(collection(db, "conversations"), {
+          users: [loggedInUser?.email, recipientEmail],
+        });
+        closeNewConversationDialog();
+      }
     }
   };
 
   const logout = async () => {
     try {
       await signOut(auth);
+      // Thêm dòng này để làm mới trang sau khi đăng xuất
+      window.location.href = "/login";
     } catch (error) {
       console.log("ERROR LOGGING OUT", error);
     }
@@ -329,7 +352,15 @@ const Sidebar = () => {
 
       <StyledContainer isOpen={isSidebarOpen}>
         <StyledHeader>
-          <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={handleOpenUserModal}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              cursor: "pointer",
+              gap: "12px", // Thêm khoảng cách giữa avatar và tên
+            }}
+            onClick={handleOpenUserModal}
+          >
             <StyledUserAvatar src={loggedInUser?.photoURL || ""} />
             <StyledH3>{loggedInUser?.displayName as string}</StyledH3>
           </div>

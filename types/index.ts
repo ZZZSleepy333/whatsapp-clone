@@ -1,3 +1,4 @@
+import { User } from "firebase/auth";
 import { Timestamp } from "firebase/firestore";
 
 export interface Conversation {
@@ -5,10 +6,11 @@ export interface Conversation {
 }
 
 export interface AppUser {
-  displayName: string;
   email: string;
   lastSeen: Timestamp;
   photoURL: string;
+  displayName: string;
+  password: string;
 }
 
 export interface IMessage {
@@ -18,4 +20,16 @@ export interface IMessage {
   sent_at: string;
   user: string;
   fileUrl?: string;
+  conversationId?: string; // Thêm cho socket
+}
+
+// Thêm các kiểu dữ liệu cho Socket
+export interface TypingStatus {
+  user: string;
+  isTyping: boolean;
+  conversationId: string;
+}
+
+export interface SocketMessageData extends IMessage {
+  conversationId: string;
 }

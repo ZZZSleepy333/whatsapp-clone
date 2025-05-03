@@ -10,6 +10,10 @@ const nextConfig = {
   files: {
     domains: ["res.cloudinary.com"],
   },
+  // Thêm cấu hình cho WebSocket
+  webSocketServer: {
+    path: '/api/socket',
+  },
 };
 
 module.exports = nextConfig;

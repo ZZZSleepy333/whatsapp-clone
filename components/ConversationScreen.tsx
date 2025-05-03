@@ -49,6 +49,10 @@ import EmojiPickerComponent from "./EmojiPickerButton";
 import ImageSidebar from "./ImageSidebar";
 import cloudinary from "../config/cloudinary";
 import FileReviewComponent from "./FileReviewComponent";
+import ImageModal from "./ImageModal";
+
+import { useSocket } from "../context/SocketContext";
+import { useSocketEvents } from "../hooks/useSocketEvents";
 
 const StyledRecipientHeader = styled.div`
   position: sticky;
@@ -260,16 +264,6 @@ const ConversationScreen = ({
             <Message message={msgData} />
 
             {/* Hiển thị hình ảnh nếu có và là file hình ảnh */}
-            {/* {msgData.fileUrl && msgData.fileUrl.includes("image") && (
-              <Image
-                src={msgData.fileUrl}
-                alt="uploaded"
-                width={200}
-                height={200}
-                style={{ objectFit: "contain", maxHeight: "300px" }}
-                onError={(e) => console.error("Image load error:", e)}
-              />
-            )} */}
 
             {/* Hiển thị link tải file nếu không phải ảnh */}
             {msgData.fileUrl && !msgData.fileUrl.includes("image") && (
