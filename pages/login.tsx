@@ -78,7 +78,6 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-// Hàm tạo avatar từ chữ cái đầu tiên của tên
 const generateAvatarUrl = (displayName: string) => {
   const initial = displayName.charAt(0).toUpperCase();
   const colors = [
@@ -94,7 +93,6 @@ const generateAvatarUrl = (displayName: string) => {
     "27ae60",
   ];
 
-  // Chọn màu ngẫu nhiên
   const colorIndex = Math.floor(Math.random() * colors.length);
   const color = colors[colorIndex];
 
@@ -119,8 +117,8 @@ const Login = () => {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
-      // Thêm chuyển hướng sau khi đăng nhập với Google thành công
-      window.location.href = '/';
+
+      window.location.href = "/";
     } catch (error) {
       console.error("Lỗi đăng nhập với Google:", error);
       setError("Đã xảy ra lỗi khi đăng nhập với Google. Vui lòng thử lại sau.");
@@ -140,11 +138,9 @@ const Login = () => {
       );
       const user = userCredential.user;
 
-      // Kiểm tra xem người dùng đã có dữ liệu trong Firestore chưa
       const userDoc = doc(db, "users", user.email as string);
       const userSnapshot = await getDoc(userDoc);
 
-      // Nếu chưa có dữ liệu trong Firestore, tạo mới
       if (!userSnapshot.exists() && user.displayName) {
         await setDoc(userDoc, {
           email: user.email,
@@ -153,9 +149,8 @@ const Login = () => {
           lastSeen: serverTimestamp(),
         });
       }
-      
-      // Thêm chuyển hướng sau khi đăng nhập thành công
-      window.location.href = '/';
+
+      window.location.href = "/";
     } catch (error: any) {
       console.error("Lỗi đăng nhập:", error);
       if (error.code === "auth/user-not-found") {
@@ -208,10 +203,8 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // Tạo avatar từ chữ cái đầu tiên của tên
       const photoURL = generateAvatarUrl(displayName);
 
-      // Tạo tài khoản mới
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -219,13 +212,11 @@ const Login = () => {
       );
       const user = userCredential.user;
 
-      // Cập nhật thông tin profile
       await updateProfile(user, {
         displayName,
         photoURL,
       });
 
-      // Lưu thông tin người dùng vào Firestore
       await setDoc(doc(db, "users", user.email as string), {
         email: user.email,
         displayName,
@@ -233,52 +224,48 @@ const Login = () => {
         lastSeen: serverTimestamp(),
       });
 
-      // Xóa dữ liệu đã nhập sau khi đăng ký thành công
       setEmail("");
       setPassword("");
       setDisplayName("");
       setConfirmPassword("");
 
-      // Chuyển về tab đăng nhập
       setTabValue(0);
 
-      // Hiển thị thông báo thành công
       alert("Đăng ký thành công! Vui lòng đăng nhập.");
     } catch (error: any) {
       console.error("Lỗi đăng ký:", error);
 
-      // Xử lý chi tiết hơn cho lỗi email đã tồn tại
       if (error.code === "auth/email-already-in-use") {
         try {
-          // Kiểm tra xem email có trong Firestore không
           const userDoc = doc(db, "users", email);
           const userSnapshot = await getDoc(userDoc);
-          
+
           if (userSnapshot.exists()) {
-            // Email tồn tại trong Firestore
             const userData = userSnapshot.data();
             console.log("Email đã tồn tại trong Firestore:", userData.email);
             setError(
-              `Email này đã được đăng ký bởi ${userData.displayName || "người dùng khác"}. Bạn có thể thử đăng nhập hoặc sử dụng email khác.`
+              `Email này đã được đăng ký bởi ${
+                userData.displayName || "người dùng khác"
+              }. Bạn có thể thử đăng nhập hoặc sử dụng email khác.`
             );
           } else {
-            // Email tồn tại trong Authentication nhưng không có trong Firestore
-            console.log("Email tồn tại trong Authentication nhưng không có trong Firestore:", email);
+            console.log(
+              "Email tồn tại trong Authentication nhưng không có trong Firestore:",
+              email
+            );
             setError(
               "Email này đã được đăng ký nhưng chưa hoàn tất thiết lập. Bạn có thể thử đăng nhập hoặc sử dụng email khác."
             );
           }
         } catch (checkError) {
-          // Lỗi khi kiểm tra Firestore
           console.error("Lỗi khi kiểm tra Firestore:", checkError);
           setError(
             "Email này đã được đăng ký. Bạn có thể thử đăng nhập hoặc sử dụng email khác."
           );
         }
-        
-        // Tự động chuyển sang tab đăng nhập và điền sẵn email
+
         setTabValue(0);
-        // Giữ nguyên email để người dùng có thể đăng nhập luôn
+
         setPassword("");
       } else if (error.code === "auth/operation-not-allowed") {
         setError(
@@ -357,7 +344,7 @@ const Login = () => {
               type="submit"
               fullWidth
               disabled={isLoading}
-              sx={{ color: 'white' }}
+              sx={{ color: "white" }}
             >
               {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
@@ -389,7 +376,7 @@ const Login = () => {
               type="password"
               variant="outlined"
               fullWidth
-              value={password} // Thêm mật khẩu vào dữ liệu lưu trữ
+              value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
@@ -415,7 +402,7 @@ const Login = () => {
               type="submit"
               fullWidth
               disabled={isLoading}
-              sx={{ color: 'white' }}
+              sx={{ color: "white" }}
             >
               {isLoading ? "Đang đăng ký..." : "Đăng ký"}
             </Button>
@@ -424,11 +411,11 @@ const Login = () => {
 
         <StyledDivider>Hoặc</StyledDivider>
 
-        <Button 
-          variant="outlined" 
-          onClick={handleGoogleSignIn} 
+        <Button
+          variant="outlined"
+          onClick={handleGoogleSignIn}
           fullWidth
-          sx={{ color: '#1976d2' }}
+          sx={{ color: "#1976d2" }}
         >
           Đăng nhập với Google
         </Button>

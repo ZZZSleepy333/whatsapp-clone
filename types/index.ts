@@ -20,10 +20,11 @@ export interface IMessage {
   sent_at: string;
   user: string;
   fileUrl?: string;
-  conversationId?: string; // Thêm cho socket
+  conversationId?: string;
+  isRead?: boolean;
+  readAt?: string;
 }
 
-// Thêm các kiểu dữ liệu cho Socket
 export interface TypingStatus {
   user: string;
   isTyping: boolean;

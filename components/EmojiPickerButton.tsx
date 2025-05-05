@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import styled from "styled-components";
-import { FaSmile } from "react-icons/fa"; // Import icon mặt cười
+import { FaSmile } from "react-icons/fa";
 import InsertEmoticonIcon from "@mui/icons-material/InsertEmoticon";
 
 const PickerWrapper = styled.div`
@@ -12,7 +12,7 @@ const PickerWrapper = styled.div`
 
 const EmojiButton = styled.button`
   padding: 8px;
-  background: transparent; /* Xóa nền */
+  background: transparent;
   border: none;
   cursor: pointer;
   font-size: 20px;
@@ -21,11 +21,11 @@ const EmojiButton = styled.button`
   justify-content: center;
 
   &:hover {
-    background: transparent; /* Xóa nền khi hover */
+    background: transparent;
   }
 
   &:focus {
-    outline: none; /* Xóa viền focus */
+    outline: none;
     background: transparent;
   }
 
@@ -36,7 +36,7 @@ const EmojiButton = styled.button`
 
 const PickerContainer = styled.div`
   position: absolute;
-  bottom: 50px; /* Đẩy Picker lên trên */
+  bottom: 50px;
   left: 0;
   background: white;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -53,7 +53,6 @@ const EmojiPickerComponent = ({
 
   return (
     <PickerWrapper>
-      {/* Button mở Emoji Picker */}
       <EmojiButton
         onClick={(e) => {
           e.preventDefault();
@@ -63,13 +62,12 @@ const EmojiPickerComponent = ({
         <InsertEmoticonIcon style={{ fontSize: 24, color: "#555" }} />
       </EmojiButton>
 
-      {/* Emoji Picker hiển thị phía trên */}
       {showPicker && (
         <PickerContainer>
           <EmojiPicker
             onEmojiClick={(emojiData: EmojiClickData) => {
               onSelect(emojiData.emoji);
-              setShowPicker(false); // Ẩn Picker sau khi chọn Emoji
+              setShowPicker(false);
             }}
           />
         </PickerContainer>

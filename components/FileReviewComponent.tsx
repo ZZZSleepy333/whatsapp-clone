@@ -5,7 +5,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import Image from "next/image";
 
-// Styled components
 const StyledFilePreviewContainer = styled.div`
   position: sticky;
   bottom: 70px;
@@ -32,7 +31,7 @@ const StyledMultiFileContainer = styled.div`
   max-width: 100%;
   padding: 5px;
   scrollbar-width: thin;
-  justify-content: flex-start; /* Căn trái */
+  justify-content: flex-start;
   width: 100%;
 
   &::-webkit-scrollbar {
@@ -192,7 +191,9 @@ const FileReviewComponent: React.FC<FileReviewProps> = ({
               <span>{(item.file.size / 1024).toFixed(1)} KB</span>
               {isUploading && uploadProgress[item.file.name] !== undefined && (
                 <StyledProgressContainer>
-                  <StyledProgressBar progress={uploadProgress[item.file.name]} />
+                  <StyledProgressBar
+                    progress={uploadProgress[item.file.name]}
+                  />
                 </StyledProgressContainer>
               )}
             </StyledFileInfo>

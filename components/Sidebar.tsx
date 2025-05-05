@@ -65,7 +65,6 @@ const StyledContainer = styled.div<{ isOpen: boolean }>`
   -ms-overflow-style: none;
   scrollbar-width: none;
 
-  /* Hiệu ứng slide cho màn hình lớn */
   width: ${({ isOpen }) => (isOpen ? "400px" : "0")};
   min-width: ${({ isOpen }) => (isOpen ? "300px" : "0")};
   max-width: ${({ isOpen }) => (isOpen ? "400px" : "0")};
@@ -193,7 +192,6 @@ const Sidebar = () => {
 
   const isMobile = useMediaQuery("(max-width:768px)");
 
-  // Tự động đóng sidebar khi chuyển sang chế độ mobile
   useEffect(() => {
     if (isMobile) {
       setIsSidebarOpen(false);
@@ -225,13 +223,11 @@ const Sidebar = () => {
     where("users", "array-contains", loggedInUser?.email)
   );
   const queryUserList = (recipientEmail: string) => {
-    // Tạo query
     const userQuery = query(
       collection(db, "users"),
       where("email", "==", recipientEmail)
     );
 
-    // Thực thi query và trả về kết quả
     return userQuery;
   };
   const [conversationsSnapshot, __loading, __error] = useCollection(
@@ -248,7 +244,6 @@ const Sidebar = () => {
   const isUsersExists = (recipientEmail: string) =>
     queryUserList(recipientEmail) == null ? true : false;
 
-  // Trong hàm createConversation
   const createConversation = async () => {
     console.log(recipientEmail);
     if (!recipientEmail) return;
@@ -258,7 +253,6 @@ const Sidebar = () => {
     } else if (isConversationAlreadyExists(recipientEmail)) {
       showSnackbar("Conversation already exists");
     } else {
-      // Kiểm tra xem người dùng có tồn tại không
       const userQuery = queryUserList(recipientEmail);
       const userSnapshot = await getDocs(userQuery);
 
@@ -281,7 +275,7 @@ const Sidebar = () => {
   const logout = async () => {
     try {
       await signOut(auth);
-      // Thêm dòng này để làm mới trang sau khi đăng xuất
+
       window.location.href = "/login";
     } catch (error) {
       console.log("ERROR LOGGING OUT", error);
@@ -297,7 +291,6 @@ const Sidebar = () => {
     }
   );
 
-  // Kiểm tra trạng thái dark mode từ localStorage khi component được mount
   useEffect(() => {
     const savedTheme = localStorage.getItem("darkMode");
     if (savedTheme === "true") {
@@ -319,7 +312,6 @@ const Sidebar = () => {
     localStorage.setItem("darkMode", newDarkMode.toString());
   };
 
-  // Đóng sidebar khi chọn một cuộc trò chuyện trên màn hình mobile
   const handleConversationSelect = () => {
     if (isMobile) {
       setIsSidebarOpen(false);
@@ -357,7 +349,7 @@ const Sidebar = () => {
               display: "flex",
               alignItems: "center",
               cursor: "pointer",
-              gap: "12px", // Thêm khoảng cách giữa avatar và tên
+              gap: "12px",
             }}
             onClick={handleOpenUserModal}
           >
@@ -369,9 +361,7 @@ const Sidebar = () => {
             <IconButton onClick={toggleDarkMode}>
               {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
             </IconButton>
-            {/* <IconButton onClick={() => toggleNewConversationDialog(true)}>
-              <ChatIcon />
-            </IconButton> */}
+
             <IconButton>
               <LogoutIcon onClick={logout} />
             </IconButton>
@@ -439,7 +429,7 @@ const Sidebar = () => {
           </DialogActions>
         </Dialog>
       </StyledContainer>
-      {/* Sử dụng component UserProfileModal */}
+
       <UserProfileModal
         open={isUserModalOpen}
         onClose={handleCloseUserModal}

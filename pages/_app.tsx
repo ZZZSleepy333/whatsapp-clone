@@ -36,19 +36,14 @@ function MyApp({ Component, pageProps }: AppProps) {
     }
   }, [loggedInUser]);
 
-  // Thêm effect để xử lý khi người dùng đăng xuất
   useEffect(() => {
-    // Biến để theo dõi trạng thái đăng nhập trước đó
     let wasLoggedIn = false;
-    
+
     return () => {
-      // Nếu trước đó đã đăng nhập và hiện tại không đăng nhập (đã đăng xuất)
       if (wasLoggedIn && !loggedInUser && !loading) {
-        // Làm mới trang để xóa dữ liệu cũ
-        window.location.href = '/login';
+        window.location.href = "/login";
       }
-      
-      // Cập nhật trạng thái đăng nhập
+
       wasLoggedIn = !!loggedInUser;
     };
   }, [loggedInUser, loading]);

@@ -4,7 +4,7 @@
   --conversation-bg: #ffffff;
   --message-bg: #e5ded8;
   --sender-message: #dcf8c6;
-  --receiver-message: #e1f5fe; /* Màu xanh nhạt cho tin nhắn người nhận */
+  --receiver-message: #e1f5fe;
   --input-bg: whitesmoke;
   --border-color: whitesmoke;
   --shadow-color: rgba(0, 0, 0, 0.2);
@@ -28,7 +28,7 @@ body.dark-mode {
   --shadow-color: rgba(0, 0, 0, 0.4) !important;
   --header-bg: #1f1f1f !important;
   --icon-color: #aaaaaa !important;
-  --receiver-message: #4891c9 !important; /* Màu xanh đậm cho tin nhắn người nhận trong dark mode */
+  --receiver-message: #4891c9 !important;
   --filePreviewBg: #2c2c2c !important;
   --filePreviewBorder: #444444 !important;
   --filePreviewText: #ffffff !important;
@@ -41,7 +41,6 @@ body {
   transition: all 0.3s ease;
 }
 
-/* Đảm bảo các component chính sử dụng CSS variables */
 .styled-container,
 [class*="StyledContainer"] {
   background-color: var(--conversation-bg) !important;
@@ -62,7 +61,6 @@ body {
   color: var(--text-color) !important;
 }
 
-/* Thêm !important để ghi đè các style inline */
 .message-container {
   background-color: var(--message-bg);
 }
@@ -85,7 +83,7 @@ body {
   background-color: var(--input-bg);
   color: var(--text-color);
 }
-/* Thêm các selector cho các component khác */
+
 [class*="StyledMessageContainer"] {
   background-color: var(--message-bg) !important;
 }
@@ -117,7 +115,6 @@ body {
   background-color: var(--receiver-message) !important;
 }
 
-/* Thêm style cho các component MUI */
 .MuiPaper-root {
   background-color: var(--conversation-bg) !important;
   color: var(--text-color) !important;
@@ -145,7 +142,6 @@ body {
   color: var(--text-color) !important;
 }
 
-/* Thêm style cho scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -175,4 +171,115 @@ a {
   box-sizing: border-box;
   transition: background-color 0.3s ease, color 0.3s ease,
     border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.highlight-message {
+  animation: highlight 2s ease-in-out;
+}
+
+@keyframes highlight {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(255, 255, 0, 0.3);
+  }
+}
+
+[class*="SearchContainer"] {
+  background-color: var(--header-bg) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  box-shadow: 0 2px 4px var(--shadow-color) !important;
+  transition: all 0.3s ease;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+[class*="SearchInput"] {
+  background-color: var(--input-bg) !important;
+  color: var(--text-color) !important;
+  border-radius: 20px !important;
+  padding: 8px 15px !important;
+  font-size: 14px !important;
+  transition: all 0.3s ease;
+  width: calc(100% - 60px) !important;
+  box-sizing: border-box !important;
+}
+
+[class*="SearchResultsContainer"] {
+  width: calc(100% - 20px) !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  left: 10px !important;
+  right: 10px !important;
+}
+
+[class*="SearchInput"]:focus {
+  box-shadow: 0 0 0 2px rgba(0, 132, 255, 0.3) !important;
+  outline: none !important;
+}
+
+[class*="SearchResultsContainer"] {
+  background-color: var(--conversation-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 8px var(--shadow-color) !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  z-index: 98 !important;
+  transition: all 0.3s ease;
+}
+
+[class*="SearchResultItem"] {
+  padding: 10px 15px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+}
+
+[class*="SearchResultItem"]:hover {
+  background-color: var(--input-bg) !important;
+}
+
+[class*="SearchResultItem"] > p {
+  margin: 0 0 5px 0 !important;
+  font-size: 14px !important;
+  color: var(--text-color) !important;
+  word-break: break-word !important;
+}
+
+[class*="SearchResultItem"] > span {
+  font-size: 12px !important;
+  color: var(--text-color) !important;
+  opacity: 0.7 !important;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+[class*="SearchContainer"] {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+[class*="SearchResultsContainer"] {
+  animation: fadeIn 0.3s ease-out;
 }

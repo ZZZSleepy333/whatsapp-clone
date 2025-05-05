@@ -17,16 +17,18 @@ export const generateQueryGetMessages = (conversationId?: string) =>
     orderBy("sent_at", "asc")
   );
 
-export const transformMessage = (
-  message: QueryDocumentSnapshot<DocumentData>
-) =>
-  ({
+export const transformMessage = (message: DocumentData) => {
+  return {
     id: message.id,
     ...message.data(),
     sent_at: message.data().sent_at
-      ? convertFirestoreTimestampToString(message.data().sent_at as Timestamp)
+      ? convertFirestoreTimestampToString(message.data().sent_at)
       : null,
-  } as IMessage);
+    readAt: message.data().readAt
+      ? convertFirestoreTimestampToString(message.data().readAt)
+      : null,
+  };
+};
 
 export const convertFirestoreTimestampToString = (timestamp: Timestamp) =>
   new Date(timestamp.toDate().getTime()).toLocaleString();

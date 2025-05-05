@@ -11,7 +11,9 @@ import {
 } from "../utils/getMessagesInConversation";
 import RecipientAvatar from "./RecipientAvatar";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ImageIcon from "@mui/icons-material/Image";
+import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
 import { useRouter } from "next/router";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "../config/firebase";
@@ -20,13 +22,13 @@ import Message from "./Message";
 import InsertEmoticonIcon from "@mui/icons-material/InsertEmoticon";
 import SendIcon from "@mui/icons-material/Send";
 import MicIcon from "@mui/icons-material/Mic";
-import CloseIcon from "@mui/icons-material/Close";
 import CircularProgress from "@mui/material/CircularProgress";
 import {
   KeyboardEventHandler,
   MouseEventHandler,
   useRef,
   useState,
+  useEffect,
 } from "react";
 import {
   addDoc,
@@ -34,15 +36,13 @@ import {
   doc,
   serverTimestamp,
   setDoc,
+  updateDoc,
+  query,
+  where,
+  getDocs,
 } from "firebase/firestore";
 import Image from "next/image";
-// import {
-//   getStorage,
-//   ref,
-//   uploadBytes,
-//   getDownloadURL,
-//   uploadBytesResumable,
-// } from "firebase/storage";
+
 import { getRecipientName } from "../utils/getRecipientName";
 import EmojiPicker from "emoji-picker-react";
 import EmojiPickerComponent from "./EmojiPickerButton";
@@ -50,6 +50,7 @@ import ImageSidebar from "./ImageSidebar";
 import cloudinary from "../config/cloudinary";
 import FileReviewComponent from "./FileReviewComponent";
 import ImageModal from "./ImageModal";
+import axios from "axios";
 
 import { useSocket } from "../context/SocketContext";
 import { useSocketEvents } from "../hooks/useSocketEvents";
@@ -125,9 +126,86 @@ const InputAndPreviewContainer = styled.div`
   width: 100%;
 `;
 
-// Xóa các styled components sau vì đã chuyển sang FileReviewComponent:
-// StyledFilePreviewContainer, StyledMultiFileContainer, StyledFilePreview,
-// StyledFileInfo, StyledCloseButton, StyledProgressContainer, StyledProgressBar
+const SearchContainer = styled.div`
+  position: sticky;
+  top: 80px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px;
+  width: 100%;
+  z-index: 99;
+  overflow-x: auto;
+`;
+
+const SearchHeader = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+`;
+
+const SearchInput = styled.input`
+  flex-grow: 1;
+  outline: none;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--input-bg);
+  padding: 10px 15px;
+  margin: 0 10px;
+  color: var(--text-color);
+  width: calc(100% - 60px);
+`;
+
+const SearchResultsContainer = styled.div`
+  width: 100%;
+  background-color: var(--conversation-bg);
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 5px;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 4px;
+  }
+`;
+
+const SearchResultItem = styled.div`
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--filePreviewBg, #444444);
+  }
+
+  > p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  > span {
+    font-size: 12px;
+    color: var(--filePreviewSubtext, #aaaaaa);
+    display: block;
+  }
+`;
 
 const ConversationScreen = ({
   conversation,
@@ -146,9 +224,17 @@ const ConversationScreen = ({
     [key: string]: number;
   }>({});
   const [isUploading, setIsUploading] = useState(false);
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isImageSidebarOpen, setIsImageSidebarOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState("");
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
   const MAX_FILES = 5;
   const conversationUsers = conversation.users;
+
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<IMessage[]>([]);
 
   const { recipientEmail, recipient, recipientName } =
     useRecipient(conversationUsers);
@@ -161,12 +247,45 @@ const ConversationScreen = ({
   const [messagesSnapshot, messagesLoading, __error] =
     useCollection(queryGetMessages);
 
+  const searchMessages = () => {
+    if (!searchQuery.trim() || !messagesSnapshot) return;
+
+    const results = messagesSnapshot.docs
+      .map((message) => transformMessage(message))
+      .filter((message) =>
+        message.text.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+    setSearchResults(results);
+  };
+
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      searchMessages();
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
+
+  const scrollToMessage = (messageId: string) => {
+    const messageElement = document.getElementById(`message-${messageId}`);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: "smooth" });
+      messageElement.classList.add("highlight-message");
+      setTimeout(() => {
+        messageElement.classList.remove("highlight-message");
+      }, 2000);
+    }
+    setIsSearchOpen(false);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     console.log("File input changed", event.target.files);
     if (event.target.files) {
       const newFiles = Array.from(event.target.files);
 
-      // Kiểm tra tổng số lượng tệp (hiện tại + mới)
       if (selectedFiles.length + newFiles.length > MAX_FILES) {
         alert(
           `Bạn chỉ có thể tải lên tối đa ${MAX_FILES} tệp cùng lúc. Hiện tại bạn đã chọn ${selectedFiles.length} tệp.`
@@ -174,7 +293,6 @@ const ConversationScreen = ({
         return;
       }
 
-      // Kiểm tra kích thước tệp
       const oversizedFiles = newFiles.filter(
         (file) => file.size > MAX_FILE_SIZE
       );
@@ -187,11 +305,9 @@ const ConversationScreen = ({
         return;
       }
 
-      // Thêm các file mới vào mảng hiện có
       const updatedFiles = [...selectedFiles, ...newFiles];
       setSelectedFiles(updatedFiles);
 
-      // Tạo xem trước cho các tệp mới
       const newPreviews: { file: File; preview: string }[] = [];
 
       newFiles.forEach((file) => {
@@ -206,7 +322,6 @@ const ConversationScreen = ({
                 });
 
                 if (newPreviews.length === newFiles.length) {
-                  // Cập nhật filePreviews bằng cách thêm vào mảng hiện có
                   setFilePreviews((prev) => [...prev, ...newPreviews]);
                 }
               }
@@ -227,7 +342,6 @@ const ConversationScreen = ({
         }
       });
 
-      // Nếu không có tệp hình ảnh, cập nhật state ngay lập tức
       if (newPreviews.length === newFiles.length) {
         setFilePreviews((prev) => [...prev, ...newPreviews]);
       }
@@ -239,7 +353,7 @@ const ConversationScreen = ({
   const clearSelectedFiles = () => {
     setSelectedFiles([]);
     setFilePreviews([]);
-    // Reset the file input
+
     const fileInput = document.getElementById("fileInput") as HTMLInputElement;
     if (fileInput) fileInput.value = "";
   };
@@ -260,13 +374,34 @@ const ConversationScreen = ({
       return messagesSnapshot.docs.map((message) => {
         const msgData = transformMessage(message);
         return (
-          <div key={message.id}>
+          <div key={message.id} id={`message-${message.id}`}>
             <Message message={msgData} />
 
-            {/* Hiển thị hình ảnh nếu có và là file hình ảnh */}
+            {/* {msgData.fileUrl && msgData.fileUrl.includes("image") && (
+              <div 
+                style={{ 
+                  cursor: 'pointer', 
+                  maxWidth: '300px', 
+                  margin: msgData.user === loggedInUser?.email ? '0 0 0 auto' : '0'
+                }}
+                onClick={() => {
+                  setSelectedImage(msgData.fileUrl || "");
+                  setIsImageModalOpen(true);
+                }}
+              >
+                <img
+                  src={msgData.fileUrl}
+                  alt="Attached image"
+                  style={{ 
+                    maxWidth: '100%', 
+                    borderRadius: '8px',
+                    marginTop: '5px'
+                  }}
+                />
+              </div>
+            )} */}
 
-            {/* Hiển thị link tải file nếu không phải ảnh */}
-            {msgData.fileUrl && !msgData.fileUrl.includes("image") && (
+            {/* {msgData.fileUrl && !msgData.fileUrl.includes("image") && (
               <a
                 href={msgData.fileUrl}
                 download
@@ -275,7 +410,7 @@ const ConversationScreen = ({
               >
                 📎 {msgData.fileUrl.split("/").pop()}
               </a>
-            )}
+            )} */}
           </div>
         );
       });
@@ -288,47 +423,72 @@ const ConversationScreen = ({
       const formData = new FormData();
       formData.append("file", file);
 
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/upload", true);
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const progress = Math.round((event.loaded / event.total) * 100);
-          setUploadProgress((prev) => ({
-            ...prev,
-            [file.name]: progress,
-          }));
-        }
-      };
-
-      xhr.onload = function () {
-        if (this.status >= 200 && this.status < 300) {
-          const response = JSON.parse(this.responseText);
-          resolve(response.url);
-        } else {
-          reject(new Error(`Upload failed: ${this.statusText}`));
-        }
-      };
-
-      xhr.onerror = function () {
-        reject(new Error("XHR request failed"));
-      };
-
-      xhr.send(formData);
+      axios
+        .post("/api/upload", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          onUploadProgress: (progressEvent: any) => {
+            if (progressEvent.total) {
+              const progress = Math.round(
+                (progressEvent.loaded / progressEvent.total) * 100
+              );
+              setUploadProgress((prev) => ({
+                ...prev,
+                [file.name]: progress,
+              }));
+            }
+          },
+        })
+        .then((response) => {
+          resolve(response.data.url);
+        })
+        .catch((error) => {
+          reject(new Error(`Upload failed: ${error.message}`));
+        });
     });
   };
+
+  useEffect(() => {
+    const markMessagesAsRead = async () => {
+      if (!loggedInUser?.email || !conversationId) return;
+
+      try {
+        const unreadMessagesQuery = query(
+          collection(db, "messages"),
+          where("conversation_id", "==", conversationId),
+          where("user", "!=", loggedInUser.email),
+          where("isRead", "==", false)
+        );
+
+        const unreadMessagesSnapshot = await getDocs(unreadMessagesQuery);
+
+        const updatePromises = unreadMessagesSnapshot.docs.map(
+          async (messageDoc) => {
+            await updateDoc(doc(db, "messages", messageDoc.id), {
+              isRead: true,
+              readAt: serverTimestamp(),
+            });
+          }
+        );
+
+        await Promise.all(updatePromises);
+      } catch (error) {
+        console.error("Lỗi khi đánh dấu tin nhắn đã đọc:", error);
+      }
+    };
+
+    markMessagesAsRead();
+  }, [conversationId, loggedInUser?.email, messagesSnapshot]);
 
   const addMessageToDbAndUpdateLastSeen = async () => {
     const fileUrls: string[] = [];
     setIsUploading(true);
 
     try {
-      // Nếu có file, tải lên Cloudinary trước
       if (selectedFiles.length > 0) {
-        // Tạo một bản sao của uploadProgress để cập nhật
         const progressCopy = { ...uploadProgress };
 
-        // Tải lên từng tệp một
         for (const file of selectedFiles) {
           try {
             const fileUrl = await uploadToCloudinary(file);
@@ -339,31 +499,30 @@ const ConversationScreen = ({
         }
       }
 
-      // Cập nhật trạng thái lastSeen
       await setDoc(
         doc(db, "users", loggedInUser?.email as string),
         { lastSeen: serverTimestamp() },
         { merge: true }
       );
 
-      // Nếu có nhiều tệp, tạo nhiều tin nhắn
       if (fileUrls.length > 0) {
         for (const fileUrl of fileUrls) {
           await addDoc(collection(db, "messages"), {
             conversation_id: conversationId,
             sent_at: serverTimestamp(),
-            text: newMessage || "", // Nếu chỉ gửi file thì text có thể trống
+            text: newMessage || "",
             fileUrl,
             user: loggedInUser?.email,
+            isRead: false,
           });
         }
       } else {
-        // Nếu chỉ có tin nhắn văn bản
         await addDoc(collection(db, "messages"), {
           conversation_id: conversationId,
           sent_at: serverTimestamp(),
           text: newMessage,
           user: loggedInUser?.email,
+          isRead: false,
         });
       }
 
@@ -405,6 +564,9 @@ const ConversationScreen = ({
   const handleEmojiSelect = (emoji: string) => {
     setNewMessage((prev) => prev + emoji);
   };
+  const toggleImageSidebar = () => {
+    setIsImageSidebarOpen(!isImageSidebarOpen);
+  };
 
   return (
     <>
@@ -426,14 +588,58 @@ const ConversationScreen = ({
         </StyledHeaderInfo>
 
         <StyledHeaderIcons>
-          <IconButton>
-            <AttachFileIcon />
+          <IconButton onClick={() => setIsSearchOpen(!isSearchOpen)}>
+            <SearchIcon />
           </IconButton>
-          <IconButton>
-            <MoreVertIcon />
+          <IconButton onClick={toggleImageSidebar}>
+            <ImageIcon />
           </IconButton>
         </StyledHeaderIcons>
       </StyledRecipientHeader>
+
+      {isSearchOpen && (
+        <SearchContainer>
+          <SearchHeader></SearchHeader>
+          <div style={{ display: "flex", width: "100%", alignItems: "center" }}>
+            <SearchIcon
+              style={{ color: "var(--text-color)", marginLeft: "5px" }}
+            />
+            <SearchInput
+              placeholder="Nhập từ khóa tìm kiếm..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+            />
+            <IconButton
+              onClick={() => setIsSearchOpen(false)}
+              style={{
+                padding: "4px",
+                backgroundColor: "var(--input-bg)",
+              }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </div>
+
+          {searchResults.length > 0 && (
+            <SearchResultsContainer>
+              {searchResults.map((result) => (
+                <SearchResultItem
+                  key={result.id}
+                  onClick={() => scrollToMessage(result.id)}
+                >
+                  <p>
+                    {result.text.length > 50
+                      ? result.text.substring(0, 50) + "..."
+                      : result.text}
+                  </p>
+                  <span>{result.sent_at}</span>
+                </SearchResultItem>
+              ))}
+            </SearchResultsContainer>
+          )}
+        </SearchContainer>
+      )}
 
       <StyledMessageContainer>
         {showMessages()}
@@ -482,6 +688,20 @@ const ConversationScreen = ({
           onChange={handleFileChange}
         />
       </StyledInputContainer>
+
+      <ImageModal
+        imageUrl={selectedImage}
+        isOpen={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+      />
+
+      {conversationId && (
+        <ImageSidebar
+          conversationId={conversationId as string}
+          isOpen={isImageSidebarOpen}
+          toggleSidebar={toggleImageSidebar}
+        />
+      )}
     </>
   );
 };

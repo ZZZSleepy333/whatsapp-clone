@@ -32,7 +32,6 @@ import {
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 
-// Styled components
 const StyledUserModal = styled(Paper)`
   position: absolute;
   top: 50%;
@@ -115,7 +114,6 @@ interface UserProfileModalProps {
   showSnackbar: (message: string) => void;
 }
 
-// Hàm để tạo canvas từ ảnh đã cắt
 function getCroppedImg(
   image: HTMLImageElement,
   crop: PixelCrop
@@ -158,7 +156,6 @@ function getCroppedImg(
   });
 }
 
-// Hàm để tạo crop mặc định (hình tròn ở giữa)
 function centerAspectCrop(
   mediaWidth: number,
   mediaHeight: number,
@@ -199,7 +196,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [currentPassword, setCurrentPassword] = useState("");
   const [error, setError] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [activeTab, setActiveTab] = useState("profile"); // "profile" hoặc "password"
+  const [activeTab, setActiveTab] = useState("profile");
 
   const handleAvatarClick = () => {
     if (fileInputRef.current) {
@@ -250,35 +247,30 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
   };
 
-  // Hàm cập nhật avatar
   const handleUpdateAvatar = async () => {
     if (!newAvatar || !user) return;
 
     setIsUploading(true);
     try {
-      // Tạo FormData để gửi file lên server
       const formData = new FormData();
       formData.append("file", newAvatar);
-      
-      // Gọi API upload đã có sẵn
+
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error("Lỗi khi tải ảnh lên Cloudinary");
       }
-      
+
       const data = await response.json();
       const cloudinaryUrl = data.url;
-      
-      // Cập nhật profile trong Firebase Auth
+
       await updateProfile(user, {
         photoURL: cloudinaryUrl,
       });
 
-      // Cập nhật thông tin trong Firestore
       await setDoc(
         doc(db, "users", user.email as string),
         {
@@ -300,13 +292,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
   };
 
-  // Hàm cập nhật mật khẩu
   const handleUpdatePassword = async () => {
     if (!user) return;
 
     setError("");
 
-    // Kiểm tra mật khẩu
     if (password !== confirmPassword) {
       setError("Mật khẩu xác nhận không khớp");
       return;
@@ -325,7 +315,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     setIsChangingPassword(true);
 
     try {
-      // Xác thực lại người dùng trước khi đổi mật khẩu
       const credential = EmailAuthProvider.credential(
         user.email as string,
         currentPassword
@@ -333,7 +322,6 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
       await reauthenticateWithCredential(user, credential);
 
-      // Cập nhật mật khẩu mới
       await updatePassword(user, password);
 
       showSnackbar("Cập nhật mật khẩu thành công");

@@ -1,8 +1,11 @@
-import { useAuthState } from "react-firebase-hooks/auth";
 import styled from "styled-components";
-import { auth } from "../config/firebase";
 import { IMessage } from "../types";
-import { ReactNode } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "../config/firebase";
+import DoneIcon from "@mui/icons-material/Done";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
+import { ReactNode, useState } from "react";
+import ImageModal from "./ImageModal";
 
 const StyledMessage = styled.p`
   width: fit-content;
@@ -37,8 +40,17 @@ const StyledTimestamp = styled.span`
   text-align: right;
 `;
 
+const MessageStatus = styled.div`
+  display: flex;
+  align-items: center;
+  font-size: 0.7rem;
+  color: gray;
+  margin-left: 5px;
+`;
+
 const Message = ({ message }: { message: IMessage }) => {
   const [loggedInUser, _loading, _error] = useAuthState(auth);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   const MessageType =
     loggedInUser?.email === message.user
@@ -46,22 +58,49 @@ const Message = ({ message }: { message: IMessage }) => {
       : StyledReceiverMessage;
 
   return (
-    <StyledMessage as={MessageType}>
-      {message.text}
+    <div>
+      <MessageType>
+        {message.text}
+        {message.fileUrl && message.fileUrl.includes("image") && (
+          <img
+            src={message.fileUrl}
+            alt="Attached image"
+            style={{
+              maxWidth: "300px",
+              maxHeight: "200px",
+              marginTop: "10px",
+              cursor: "pointer",
+            }}
+            onClick={() => setIsImageModalOpen(true)}
+          />
+        )}
+        <MessageStatus>
+          {loggedInUser?.email === message.user && (
+            <>
+              <span style={{ fontSize: "0.6rem", marginRight: "3px" }}>
+                {new Date(message.sent_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+              {message.isRead ? (
+                <DoneAllIcon style={{ fontSize: "0.9rem", color: "#34B7F1" }} />
+              ) : (
+                <DoneIcon style={{ fontSize: "0.9rem" }} />
+              )}
+            </>
+          )}
+        </MessageStatus>
+      </MessageType>
 
-      {/* ✅ Kiểm tra nếu có fileUrl */}
       {message.fileUrl && message.fileUrl.includes("image") && (
-        <img src={message.fileUrl} alt="uploaded" width="200"></img>
+        <ImageModal
+          imageUrl={message.fileUrl}
+          isOpen={isImageModalOpen}
+          onClose={() => setIsImageModalOpen(false)}
+        />
       )}
-
-      {message.fileUrl && !message.fileUrl.includes("image") && (
-        <a href={message.fileUrl} download target="_blank" rel="noreferrer">
-          📎 {message.fileUrl.split("/").pop()}
-        </a>
-      )}
-
-      <StyledTimestamp>{message.sent_at}</StyledTimestamp>
-    </StyledMessage>
+    </div>
   );
 };
 

@@ -50,7 +50,7 @@ const ImageModal = ({ imageUrl, isOpen, onClose }: ImageModalProps) => {
   useEffect(() => {
     if (isOpen) {
       setIsVisible(true);
-      // Ngăn cuộn trang khi modal mở
+
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "auto";
@@ -68,7 +68,6 @@ const ImageModal = ({ imageUrl, isOpen, onClose }: ImageModalProps) => {
     onClose();
   };
 
-  // Đóng modal khi nhấp vào overlay
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       handleClose();
